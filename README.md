@@ -286,40 +286,70 @@ ORDER BY  2 DESC
 
 Определяем долю заказов, отправленных вторым классом, которые были доставлены с опозданием, по кварталам:
 
-/WITH table1 as
+WITH table1 as
 	(SELECT order_id,
+	
 		 ship_date,
+		 
 		 ship_mode,
+		 
 		 ship_date-order_date AS order_days
+		 
 	FROM sql.store_delivery
+	
 	WHERE ship_mode='Second Class' ),--считаем, за сколько дней были доставлены заказы по типу доставки "второй класс"
+	
 	orders_type AS 
+	
 	(SELECT order_id,
 		
 		CASE
+		
 		WHEN order_days>4 THEN
+		
 		'not_success'
+		
 		ELSE 'success'
+		
 		END AS status, ship_date
+		
 	FROM table1 ),--присваиваем каждому заказу, который был доставлен по типу доставки "второй класс", статус "успешно", если доставлен вовремя и "не успешно", если с опозданием
+	
 	late_orders AS 
+	
 	(SELECT date_trunc('QUARTER', ship_date) AS ship_date, count(order_id) orders_late
+	
 	FROM orders_type
+	
 	GROUP BY  1, orders_type.status
+	
 	HAVING status='not_success'),--считаем количество доставок с опозданием по каждому кварталу 
+	
 	cte AS 
+	
 	(SELECT date_trunc('QUARTER', table1.ship_date) AS ship_date, count(table1.order_id) AS orders_cnt
+	
 	FROM table1
+	
 	LEFT JOIN late_orders lo
+	
 		ON lo.ship_date=table1.ship_date
+		
 	GROUP BY  1)--считаем общее количество доставок по каждому кварталу
-SELECT date_trunc('QUARTER', cte.ship_date) AS ship_date, round(orders_late/orders_cnt::numeric*100, 2) late_orders/*
+	
+SELECT date_trunc('QUARTER', cte.ship_date) AS ship_date, round(orders_late/orders_cnt::numeric*100, 2) late_orders
+
+/*
 *считаем процент доставок с опозданием ообщего числа доставок по каждому кварталу
 */
+
 FROM cte
+
 JOIN late_orders lo
+
 	ON lo.ship_date=cte.ship_date
-ORDER BY  1 --сортируем по дате в порядке возрастания/
+	
+ORDER BY  1 --сортируем по дате в порядке возрастания
 
 ![2023-02-15](https://user-images.githubusercontent.com/125760683/221902686-87a7b937-52f8-4683-bf86-48d56ac969ac.png)
 
